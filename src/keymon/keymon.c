@@ -260,15 +260,18 @@ void deepsleep(void)
 //
 void suspend_exec(int timeout)
 {
+    bool stay_awake = timeout == -1;
     keyinput_disable();
 
     // pause playActivity
     system("playActivity stop_all");
 
     // suspend
-    suspend(0);
+    if (!stay_awake) {
+        suspend(0);
+        setVolume(0);
+    }
     rumble(0);
-    setVolume(0);
     display_setBrightnessRaw(0);
     display_off();
     system_powersave_on();
@@ -358,15 +361,18 @@ void turnOffScreen(void)
  */
 void cpuClockHotkey(int adjust)
 {
+    if (config_flag_get(".cpuClockHotkey") == 0) {
+        return;
+    }
     printf_debug("cpuClockHotkey: %d\n", adjust);
     int min_cpu_clock = 500; // ?
     int max_cpu_clock;
     switch (DEVICE_ID) {
     case MIYOO354:
-        max_cpu_clock = 1900;
+        max_cpu_clock = 1800;
         break;
     case MIYOO283:
-        max_cpu_clock = 1700;
+        max_cpu_clock = 1600;
         break;
     default:
         // Unknown device
@@ -406,6 +412,11 @@ void cpuClockHotkey(int adjust)
     }
 }
 
+static void signal_refresh(int sig)
+{
+    display_getRenderResolution();
+}
+
 //
 //    Main
 //
@@ -414,7 +425,7 @@ int main(void)
     // Initialize
     signal(SIGTERM, quit);
     signal(SIGSEGV, quit);
-    signal(SIGUSR1, display_getRenderResolution);
+    signal(SIGUSR1, signal_refresh);
     log_setName("keymon");
 
     getDeviceModel();
